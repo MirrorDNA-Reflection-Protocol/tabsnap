@@ -1,0 +1,7 @@
+sqlalchemy>=2.0
+basic-pitch>=0.3
+librosa>=0.10
+pretty-midi>=0.2
+soundfile>=0.12
+numpy>=1.26
+python-dotenv>=1.0

@@ -1,6 +1,7 @@
-"""TabSnap worker — processes transcription jobs from Redis queue.
+"""TabSnap worker — processes transcription jobs.
 
-Run: rq worker tabsnap --url redis://localhost:6379/0
+With Redis: rq worker tabsnap --url redis://localhost:6379/0
+Without Redis: called directly by the API in local dev mode.
 """
 
 from __future__ import annotations
@@ -10,12 +11,15 @@ import os
 import sys
 from pathlib import Path
 
-from dotenv import load_dotenv
-
-load_dotenv()
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass
 
 # Ensure packages are importable
-sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "packages"))
+_root = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(_root / "packages"))
 
 import sqlalchemy as sa
 from sqlalchemy import create_engine
@@ -32,12 +36,14 @@ from pipeline.export import export_text_tab
 
 from tab_core import render_ascii_tab, bars_to_ascii, bars_to_json
 
-# Sync engine for RQ worker (RQ is not async)
-DATABASE_URL = os.getenv(
-    "DATABASE_URL_SYNC",
-    "postgresql://tabsnap:tabsnap@localhost:5432/tabsnap",
-)
-engine = create_engine(DATABASE_URL)
+# Sync engine — Postgres in prod, SQLite locally
+DATABASE_URL = os.getenv("DATABASE_URL_SYNC", "")
+if DATABASE_URL:
+    engine = create_engine(DATABASE_URL)
+else:
+    _db_path = _root / "data" / "tabsnap.db"
+    _db_path.parent.mkdir(parents=True, exist_ok=True)
+    engine = create_engine(f"sqlite:///{_db_path}")
 
 OUTPUT_BASE = Path(os.getenv("OUTPUT_DIR", "data/outputs"))
 
